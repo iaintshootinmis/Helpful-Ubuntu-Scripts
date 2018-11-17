@@ -52,14 +52,14 @@ if [ -n "$message" ]; then
     if [ ! -f "/tmp/outage_detector.dat" ]; then
         last_alert_time=0
     else
-        last_alert_time=`cat /tmp/outage_detector.dat`
+        last_alert_time=$(cat /tmp/outage_detector.dat)
     fi
 
-    current_time=`date +%s`
-    time_since_last_alert=`expr $current_time - $last_alert_time`
+    current_time=$(date +%s)
+    time_since_last_alert=$(( $current_time - $last_alert_time ))
 
     if [ $time_since_last_alert -gt $max_alert_frequency ]; then
-        remediation_attempt_response=`bash "$1"`
+        remediation_attempt_response=$(bash "$1")
         message="$message
         status of attempted remediation: $remediation_attempt_response"
 
