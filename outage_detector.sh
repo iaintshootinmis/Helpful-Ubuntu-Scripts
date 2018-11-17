@@ -16,6 +16,8 @@
 # 
 # SETUP #
 #   Configure the variables below to get started.
+#   
+#   Requires `mailx`
 #
 #   Consider running the outage_detector in a cronjob. 
 #   Example (run the script 1 minute past every hour:
