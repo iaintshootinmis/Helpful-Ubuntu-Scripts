@@ -78,6 +78,14 @@
 - Set Timezone
   - `sudo dpkg-reconfigure tzdata`
 
+- Configure the firewall
+  - Run as root:
+  
+        ufw default deny incoming
+        ufw default allow outgoing
+        ufw allow ssh
+        ufw enable
+
 
 ## [Configure Automatic Updates](https://www.unixmen.com/configure-automatic-updates-ubuntu-server/)
 1. run `sudo apt-get install unattended-upgrades`
