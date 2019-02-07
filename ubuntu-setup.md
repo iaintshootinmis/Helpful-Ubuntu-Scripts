@@ -52,15 +52,21 @@
 
          #!/bin/sh
          # Change these two lines:
-         sender="sender-address@example.com"
-         recepient="notify-address@example.org"
+         sender="from@example.com"
+         recepient="to@example.com"
          
          if [ "$PAM_TYPE" != "close_session" ]; then
              host="`hostname`"
-             subject="SSH Login: $PAM_USER from $PAM_RHOST on $host"
+             subject="Server Alerts: New Login - $PAM_USER"
+             vars=`env`
              # Message to send, e.g. the current environment variables.
-             message="`env`"
-             echo "$message" | mailx -r "$sender" -s "$subject" "$recepient"
+             message="The following activity has recently occurred:
+
+         * New SSH Login with environment variables: 
+
+         $(for string in `env`; do printf "%4s%s\n" '' "$string"; done)
+         -------------------------------------------"
+         echo "$message" | mailx -a "From: $sender" -r "$sender" -s "$subject" "$recepient"
          fi
 
   3. mark the script as executable `sudo chmod +x /etc/ssh/login-notify.sh`
