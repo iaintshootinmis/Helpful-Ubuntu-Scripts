@@ -58,7 +58,6 @@
          if [ "$PAM_TYPE" != "close_session" ]; then
              host="`hostname`"
              subject="Server Alerts: New Login - $PAM_USER"
-             vars=`env`
              # Message to send, e.g. the current environment variables.
              message="The following activity has recently occurred:
 
