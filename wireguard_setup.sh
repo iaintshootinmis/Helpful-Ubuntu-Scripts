@@ -98,7 +98,7 @@ setup_wireguard_server() {
     rm /etc/resolv.conf
     echo "nameserver 127.0.0.1" > /etc/resolv.conf
 
-    # Allow unbound to read it's stuff
+    # Allow unbound to read its stuff
     chown -R unbound:unbound /var/lib/unbound
     systemctl enable unbound
 
