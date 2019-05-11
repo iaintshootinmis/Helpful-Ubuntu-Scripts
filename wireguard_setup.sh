@@ -6,7 +6,7 @@
 #    I would recommend testing the script/installation before deploying onto a 
 #    server with actual data. Changing the DNS configuration (which this script does)
 #    is an easy way to bork your system (you might be able to fix it, but it's just easier to 
-#    start fresh from a new image). All configuration in the works now, but who knows
+#    start fresh from a new image). Everything in the script works now, but who knows
 #    what will change in the future.
 #
 # Sources:
