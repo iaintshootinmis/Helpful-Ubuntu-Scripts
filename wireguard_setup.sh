@@ -201,7 +201,7 @@ wg_name='wg0'
 # Before handling the arguments, check to see if both the -s and -c flags are
 # passed. This will impact when the prompt to restart is displayed.
 x=0
-while getopts 'sc' flag; do
+while getopts 'a:c:hp:sw:' flag; do
     case "${flag}" in
     s) x=$((x+1)) ;;
     c) x=$((x+1)) ;;
