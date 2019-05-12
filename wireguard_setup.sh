@@ -197,17 +197,8 @@ client_name=''
 server_ip_address=''
 listen_port='443'
 wg_name='wg0'
-
-# Before handling the arguments, check to see if both the -s and -c flags are
-# passed. This will impact when the prompt to restart is displayed.
-x=0
-while getopts 'a:c:hp:sw:' flag; do
-    case "${flag}" in
-    s) x=$((x+1)) ;;
-    c) x=$((x+1)) ;;
-    esac
-done
-OPTIND=1 # reset OPTIND to it's intial value so that we can read the options again, below
+create_wg_interface='false'
+create_client='false'
 
 # Actually handling the arguments
 while getopts 'a:c:hp:sw:' flag; do
@@ -215,19 +206,26 @@ while getopts 'a:c:hp:sw:' flag; do
     a) server_ip_address="${OPTARG}" ;;
     p) listen_port="${OPTARG}" ;;
     w) wg_name="${OPTARG}" ;;
-    s) try_to_find_server_ip
-        # If a command fails, stop running the script
-        set -o errexit
-        setup_wireguard_server
-        if [ $x -ne 2 ]; then prompt_for_restart; fi ;; # prompt for restart later, after client created
-    c) client_name="${OPTARG}"
-        try_to_find_server_ip
-        # If a command fails, stop running the script
-        set -o errexit
-        setup_client
-        if [ $x -eq 2 ]; then prompt_for_restart; fi ;; # earlier we had skipped the restart, now is time to ask.
-    *) print_usage
-        exit 1 ;;
+    s) create_wg_interface='true'; x=$((x+1)) ;;
+    c) create_client='true'; client_name="${OPTARG}"; x=$((x+1)) ;;
+    *) print_usage; exit 1 ;;
     esac
 done
 if [ $OPTIND -eq 1 ]; then echo "No options were passed"; print_usage; fi
+
+if [ "$create_wg_interface" = true ]; then
+    try_to_find_server_ip
+        # If a command fails, stop running the script
+        set -o errexit
+        setup_wireguard_server
+        if [ $x -ne 2 ]; then prompt_for_restart; fi ;; # if flase, prompt for restart later, after client created
+fi
+
+if [ "$create_client" = true ]; then
+    try_to_find_server_ip
+    # If a command fails, stop running the script
+    set -o errexit
+    setup_client
+    if [ $x -eq 2 ]; then prompt_for_restart; fi ;; # earlier we had skipped the restart, now is time to ask.
+fi
+
