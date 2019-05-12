@@ -181,18 +181,25 @@ setup_client() {
 print_usage() {
   printf "Usage: wireguard-setup.sh [options...]
   [-s], set up and run wireguard with local dns resolution.
-  [-c client_name [-a] | [-d ip_addr]], create a wireguard client with given name, no spaces.
-          Specifying the '[-d ip_address]' flag will configure the client to use the provided IP 
+          See other flags below for default configuration.
+  [-c client_name [-a] | [-d ip_addr] | [-w wg_name]], create a wireguard client with given name, no spaces.
+          Specifying the '[-d ip_addr]' flag will configure the client to use the provided IP 
           as its DNS resolver.
           Specifying the '-a' flag will configure the client to use the server as a DNS resolver.
           '-a' Takes precedence over '-d'.
           If neither '-a' or '-d' are given, then the client will be configured to use 1.1.1.1 for
           DNS resolution.
-  [-i public_ip], set the public IP for the Wireguard server (only used for server or client setup). 
-  [-p port], set listening port, overrides default of 443 (only used for server or client setup).
+          If '-w' is not supplied, by default the client will be created on wg0
+  [-i ip_addr], set the public IP for the Wireguard server (only used for server or client setup). 
+  [-p port], set listening port, (only used for server or client setup. Cannot re-configure the 
+          server).
+          Default is port 443.
   [-w interface_name], name the wireguard interface, no spaces (used during server setup).
+          Default is 'wg0'.
   [-a], enable advanced DNS mode. DNS will be resolved by the server. Takes precedence over '-d'.
-  [-d ip_address], set the basic installation's DNS server IP (used for clients). Default is 1.1.1.1
+          Disabled by default.
+  [-d ip_addr], set the basic installation's DNS server IP (used for clients). 
+          Default is 1.1.1.1
 "
 }
 
