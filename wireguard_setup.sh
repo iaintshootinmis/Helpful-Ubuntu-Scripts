@@ -1,43 +1,32 @@
-# Wireguard Server Setup For Ubuntu 19.04, With Local DNS Resolution
+# Wireguard Server Setup For Ubuntu 19.04
 #
 # Instructions:
 #    Run this script as root. Use -h to see input arguments
 #
-#    I would recommend testing the script/installation before deploying onto a 
-#    server with actual data. Changing the DNS configuration (which this script does)
-#    is an easy way to bork your system (you might be able to fix it, but it's just easier to 
-#    start fresh from a new image). Everything in the script works now, but who knows
-#    what will change in the future.
+#    There are two installation modes:
+#      1) (Default) Install with basic DNS settings: DNS requests from the client are tunneled to 
+#         the server and then forwarded on to the configured DNS server (e.g. Cloudflare's 1.1.1.1).
+#      2) Hosted DNS: Advanced installation, installs the 'unbound' DNS cache / resolver onto the 
+#         server. This modifies the default DNS settings of the server (typically, the default 
+#         configuration is for the server to send DNS requests to some external server to handle. 
+#         By selecting this install mode, your server will perform DNS resolution and caching on 
+#         its own). DNS requests from the client are sent to the server, and the server resolves the
+#         DNS query.
+#
+#    Note On The Advanced Installation:
+#        I would recommend testing the script/installation before deploying onto a server with 
+#        actual data. Changing the DNS configuration (which this script does) is an easy way to 
+#        bork your system (you might be able to fix it, but it's just easier to start fresh from a 
+#        new image). Everything in the script works now, but who knows what will change in the 
+#        future.
 #
 # Sources:
 #    1) https://www.ckn.io/blog/2017/11/14/wireguard-vpn-typical-setup
 #    2) https://grh.am/2018/wireguard-setup-guide-for-ios/
 #
 
-setup_wireguard_server() {
-    # Wireguard isn't part of the Ubuntu packages, so we have to add it.
-    add-apt-repository -y ppa:wireguard/wireguard 
-    apt-get -y update 
-    # Wireguard requries headers for the linux kernel, so we need to install them too.
-    apt-get install -y wireguard-dkms wireguard-tools linux-headers-$(uname -r)
-    # Install a QR code generator, used for rendering client connection config as qr code.
-    apt install -y qrencode 
-
-    # Generate server keys
-    umask 077
-    wg genkey | tee /etc/wireguard/server-privatekey | wg pubkey > /etc/wireguard/server-publickey
-
-    # Set server config
-    server_private_key=$(cat /etc/wireguard/server-privatekey)
-    cat > /etc/wireguard/$wg_name.conf <<- EOF
-		[Interface]
-		Address = 10.0.0.1/24
-		SaveConfig = true
-		PostUp = iptables -A FORWARD -i $wg_name -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE; iptables -A INPUT -s 10.0.0.0/24 -p tcp -m tcp --dport 53 -m conntrack --ctstate NEW -j ACCEPT; iptables -A INPUT -s 10.0.0.0/24 -p udp -m udp --dport 53 -m conntrack --ctstate NEW -j ACCEPT
-		PostDown = iptables -D FORWARD -i $wg_name -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE;
-		ListenPort = $listen_port
-		PrivateKey = $server_private_key
-	EOF
+setup_unbound_dns() {
+    # Note: After running this you need to restart in order for the DNS changes to be applied.
 
     # Set up local DNS Server
     apt-get install -y unbound unbound-host
@@ -101,6 +90,32 @@ setup_wireguard_server() {
     # Allow unbound to read its stuff
     chown -R unbound:unbound /var/lib/unbound
     systemctl enable unbound
+}
+
+setup_wireguard_server() {
+    # Wireguard isn't part of the Ubuntu packages, so we have to add it.
+    add-apt-repository -y ppa:wireguard/wireguard 
+    apt-get -y update 
+    # Wireguard requries headers for the linux kernel, so we need to install them too.
+    apt-get install -y wireguard-dkms wireguard-tools linux-headers-$(uname -r)
+    # Install a QR code generator, used for rendering client connection config as qr code.
+    apt install -y qrencode 
+
+    # Generate server keys
+    umask 077
+    wg genkey | tee /etc/wireguard/server-privatekey | wg pubkey > /etc/wireguard/server-publickey
+
+    # Set server config
+    server_private_key=$(cat /etc/wireguard/server-privatekey)
+    cat > /etc/wireguard/$wg_name.conf <<- EOF
+		[Interface]
+		Address = 10.0.0.1/24
+		SaveConfig = true
+		PostUp = iptables -A FORWARD -i $wg_name -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE; iptables -A INPUT -s 10.0.0.0/24 -p tcp -m tcp --dport 53 -m conntrack --ctstate NEW -j ACCEPT; iptables -A INPUT -s 10.0.0.0/24 -p udp -m udp --dport 53 -m conntrack --ctstate NEW -j ACCEPT
+		PostDown = iptables -D FORWARD -i $wg_name -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE;
+		ListenPort = $listen_port
+		PrivateKey = $server_private_key
+	EOF
 
     # Enable IPV4 Forwarding: uncomment 'net.ipv4.ip_forward=1' in the config
     sed -i '/net.ipv4.ip_forward/c\net.ipv4.ip_forward=1' /etc/sysctl.conf
@@ -118,15 +133,15 @@ setup_client() {
     # Shutdown the wireguard server
     wg-quick down $wg_name > /dev/null
 
-	# Generate client keys
-	umask 077
+    # Generate client keys
+    umask 077
     wg genkey | tee /etc/wireguard/$client_name-privatekey | wg pubkey > /etc/wireguard/$client_name-publickey	
 
     # Generate client IP Address, only support less than 254 peers for now
     let ip_lsb8=$(grep "Peer" /etc/wireguard/$wg_name.conf | wc -l)+2
     client_ip="10.0.0.$ip_lsb8/32"
 
-	# Add client to wirguard config
+    # Add client to wirguard config
     client_public_key=$(cat /etc/wireguard/$client_name-publickey)
     cat >> /etc/wireguard/$wg_name.conf <<- EOF
 		
@@ -140,11 +155,13 @@ setup_client() {
     client_private_key=$(cat /etc/wireguard/$client_name-privatekey)
     server_public_key=$(cat /etc/wireguard/server-publickey)
     server_port=$(grep "ListenPort" /etc/wireguard/$wg_name.conf | cut -d " " -f3)
+    client_dns=$dns_ip
+    if [ "$hosted_dns" = true ]; then client_dns='10.0.0.1'; fi
     cat > /etc/wireguard/$client_name.conf <<- EOF
 		[Interface]
 		PrivateKey = $client_private_key
 		Address = $client_ip
-		DNS = 10.0.0.1
+		DNS = $client_dns
 
 		[Peer]
 		PublicKey = $server_public_key
@@ -164,10 +181,18 @@ setup_client() {
 print_usage() {
   printf "Usage: wireguard-setup.sh [options...]
   [-s], set up and run wireguard with local dns resolution.
-  [-c client_name], create a wireguard client with given name, no spaces.
-  [-a public_ip], set the public IP for your Wireguard server (only used for server or client setup). 
+  [-c client_name [-a] | [-d ip_addr]], create a wireguard client with given name, no spaces.
+          Specifying the '[-d ip_address]' flag will configure the client to use the provided IP 
+          as its DNS resolver.
+          Specifying the '-a' flag will configure the client to use the server as a DNS resolver.
+          '-a' Takes precedence over '-d'.
+          If neither '-a' or '-d' are given, then the client will be configured to use 1.1.1.1 for
+          DNS resolution.
+  [-i public_ip], set the public IP for the Wireguard server (only used for server or client setup). 
   [-p port], set listening port, overrides default of 443 (only used for server or client setup).
   [-w interface_name], name the wireguard interface, no spaces (used during server setup).
+  [-a], enable advanced DNS mode. DNS will be resolved by the server. Takes precedence over '-d'.
+  [-d ip_address], set the basic installation's DNS server IP (used for clients). Default is 1.1.1.1
 "
 }
 
@@ -199,15 +224,19 @@ listen_port='443'
 wg_name='wg0'
 create_wg_interface='false'
 create_client='false'
+hosted_dns='false'
+dns_ip='1.1.1.1'
 
 # Actually handling the arguments
-while getopts 'a:c:hp:sw:' flag; do
+while getopts 'ac:d:i:hp:sw:' flag; do
     case "${flag}" in
-    a) server_ip_address="${OPTARG}" ;;
-    p) listen_port="${OPTARG}" ;;
-    w) wg_name="${OPTARG}" ;;
-    s) create_wg_interface='true'; x=$((x+1)) ;;
+    a) hosted_dns='true' ;;
     c) create_client='true'; client_name="${OPTARG}"; x=$((x+1)) ;;
+    d) dns_ip="${OPTARG}" ;;
+    i) server_ip_address="${OPTARG}" ;;
+    p) listen_port="${OPTARG}" ;;
+    s) create_wg_interface='true'; x=$((x+1)) ;;
+    w) wg_name="${OPTARG}" ;;
     *) print_usage; exit 1 ;;
     esac
 done
@@ -218,7 +247,8 @@ if [ "$create_wg_interface" = true ]; then
         # If a command fails, stop running the script
         set -o errexit
         setup_wireguard_server
-        if [ $x -ne 2 ]; then prompt_for_restart; fi # if false, prompt for restart later, after client created
+        if [ "$hosted_dns" = true ]; then setup_unbound_dns; fi
+        if [ $x -ne 2 ]; then prompt_for_restart; fi # if flase, prompt for restart later, after client created
 fi
 
 if [ "$create_client" = true ]; then
