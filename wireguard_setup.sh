@@ -20,6 +20,29 @@
 #        new image). Everything in the script works now, but who knows what will change in the 
 #        future.
 #
+#   Understanding the .conf [Peer] DNS
+#        Due to Wireguard's minimal documentation, it's unclear whether the client will directly 
+#        contact the DNS resolver, or if its DNS requests will first be tunneled through the 
+#        Wireguard server and then onto the DNS resolver.
+# 
+#        To figure out how this configuration parameter works I ran two tests. For the first, I
+#        turned off the VPN on my client and configured its operating system to use my server as a 
+#        DNS resolver. For the second, I turned on the VPN client and set the Wireguard client's 
+#        DNS configuration parameter to use the same server as a DNS resolver.
+#        For both tests, I ran netcat on the server to listen for the incoming DNS UDP packets.
+#            Sidenote: you need the GNU version of netcat (nc).
+#                apt-get install netcat
+#                update-alternatives --config nc 
+#                choose netcat.traditional
+#        By running `nc -u -l 0.0.0.0 -p 53 -k -vv -n` I could listen for DNS requests and see the 
+#        sender's IP addresses.
+#        For the first test, I saw the DNS request coming from my client device's public IP. This is
+#        the control case and was expected.
+#        For the second test, I saw the DNS request coming from a LAN IP (e.g. 10.0.0.2). The 
+#        client's public IP address is not shown in the DNS request, proving that the DNS requests
+#        are being tunneled through the server.
+#        
+#
 # Sources:
 #    1) https://www.ckn.io/blog/2017/11/14/wireguard-vpn-typical-setup
 #    2) https://grh.am/2018/wireguard-setup-guide-for-ios/
