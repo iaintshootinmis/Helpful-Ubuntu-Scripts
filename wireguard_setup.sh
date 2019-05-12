@@ -218,7 +218,7 @@ if [ "$create_wg_interface" = true ]; then
         # If a command fails, stop running the script
         set -o errexit
         setup_wireguard_server
-        if [ $x -ne 2 ]; then prompt_for_restart; fi ;; # if flase, prompt for restart later, after client created
+        if [ $x -ne 2 ]; then prompt_for_restart; fi # if false, prompt for restart later, after client created
 fi
 
 if [ "$create_client" = true ]; then
@@ -226,6 +226,6 @@ if [ "$create_client" = true ]; then
     # If a command fails, stop running the script
     set -o errexit
     setup_client
-    if [ $x -eq 2 ]; then prompt_for_restart; fi ;; # earlier we had skipped the restart, now is time to ask.
+    if [ $x -eq 2 ]; then prompt_for_restart; fi # earlier we had skipped the restart, now is time to ask.
 fi
 
